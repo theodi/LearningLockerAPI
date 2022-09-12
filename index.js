@@ -4,43 +4,48 @@ const fetch = require('node-fetch');
 var json2csv = require('json2csv'); // Library to create CSV for output
 const { Headers } = fetch;
 
+
 const app = express(); // Initialise the REST app
 
-const getStatements = async (activity,verb,since,until) => {
-  let myHeaders = new Headers();
-  myHeaders.append(
-    'Authorization',
-    'Basic ' + process.env.KEY
-  );
-  myHeaders.append('Content-Type', 'application/json');
-  myHeaders.append('X-Experience-API-Version', '1.0.0');
-
-  let requestOptions = {
-    method: 'GET',
-    headers: myHeaders,
-    redirect: 'follow',
-  };
-  // get paramters from search param in url
-
-  let base = "https://theodi.learninglocker.net/data/xAPI/statements?";
-  let args = [];
-  if (verb) { args.push("verb="+verb); }
-  if (activity) { args.push("activity="+encodeURIComponent(activity)); }
-  if (since) { args.push("since="+since); }
-  if (until) { args.push("until="+until); }
-  var query = base + args.join('&');
-  
-  // insert params in fetch
-  const getJson = async (query) => {
-
-    const res = await fetch(
-      query,
-      requestOptions
+const getStatements = async (activity, verb, since, until) => {
+    let myHeaders = new Headers();
+    myHeaders.append(
+        'Authorization',
+        'Basic ' + process.env.KEY
     );
-    return await res.json();
-  }
+    myHeaders.append('Content-Type', 'application/json');
+    myHeaders.append('X-Experience-API-Version', '1.0.0');
 
-  return await getJson(query);
+    let requestOptions = {
+        method: 'GET',
+        headers: myHeaders,
+        redirect: 'follow',
+    };
+    // get paramters from search param in url
+
+    let base = "https://theodi.learninglocker.net/data/xAPI/statements?";
+    let args = [];
+    if (verb) { args.push("verb=" + verb); }
+    if (activity) { args.push("activity=" + encodeURIComponent(activity)); }
+    if (since) { args.push("since=" + since); }
+    if (until) { args.push("until=" + until); }
+    var query = base + args.join('&');
+
+    // insert params in fetch
+    const getJson = async (query) => {
+        try {
+            const res = await fetch(
+                query,
+                requestOptions
+            );
+            return await res.json();
+        }
+        // catch error and return 404 to user 
+        catch (error) {
+            return console.log('404  error', error);
+        }
+    };
+    return await getJson(query);
 }
 
 function simplifyOutput(input) {
@@ -48,97 +53,105 @@ function simplifyOutput(input) {
     input.map((a) => {
         array.push(a.count);
     });
-    return array;    
+    return array;
 }
-
-
 /* 
  * Function to handle the users REST request
  */
-function handleRequest(req,res) {
+function handleRequest(req, res) {
     var filter = req.query;
     if (!filter.activity) {
         res.statusMessage = "You need to define an activity e.g. http://url.com/?activity=http://....";
-        res.status(400).end();
+        // res.status(400).end();
     }
 
+    
     var activity = filter.activity;
     var verb = "http://adlnet.gov/expapi/verbs/answered";
     var since = filter.since || null;
     var until = filter.until || null;
     var format = filter.format;
 
-    getStatements(activity,verb,since,until).then((objects) => {
-        var statements = objects.statements;
-        
+    getStatements(activity, verb, since, until).then((objects) => {
+        var statements = objects?.statements;
+        if (!statements) {
+            res.statusMessage = "No statements found";
+            res.status(404).end();
+        }
+        else {
+
         var output = {};
 
         var csvOutput = [];
 
-        output.object = statements[0].object;
+        output.object = statements ?? [0].object;
+
         output.responses = [];
         output.success = 0;
         output.completion = 0;
-        
+
         var responseArray = [];
 
-        statements.map((a) => {
+        statements?.map((a) => {
             result = a.result;
             responses = result.response.split('[,]');
-            responses.map((response) => { 
+            responses.map((response) => {
                 if (responseArray[response]) {
-                    responseArray[response] += 1; 
+                    responseArray[response] += 1;
                 } else {
                     responseArray[response] = 1;
                 }
             });
-            if (result.success) {output.success += 1;}
-            if (result.completion) {output.completion += 1;}
+            if (result.success) { output.success += 1; }
+            if (result.completion) { output.completion += 1; }
         });
 
-        statements[0].object.definition.choices.map((a) => {
-            var jsonres = {};
+        statements ?? [0].object?.definition.choices.map((a) => {
+            let jsonres = {};
             jsonres.id = a.id;
             jsonres.count = responseArray[a.id] || 0;
             output.responses.push(jsonres);
 
-            var csvres = {};
+            let csvres = {};
             csvres.answer = a.description.en;
             csvres.count = responseArray[a.id] || 0;
             csvOutput.push(csvres);
         });
-
+    }
+// fix cannot set headers after they are sent to the client error
+    
         // Work out what the client asked for, the ".ext" specified always overrides content negotiation
         ext = req.params["ext"] || filter.format;
         // If there is no extension specified then manage it via content negoition, yay!
         if (!ext) {
-           ext = req.accepts(['json','csv','html']);
+            ext = req.accepts(['json', 'csv', 'html']);
         }
 
         // Return the data to the user in a format they asked for
         // CSV, JSON or by default HTML (web page)
-        res.setHeader('Access-Control-Allow-Origin', '*');
+            res.set('Access-Control-Allow-Origin', '*');
         if (ext == "csv") {
             res.set('Content-Type', 'text/csv');
             res.send(json2csv({ data: csvOutput }));
         } else if (ext == "json") {
             res.set('Content-Type', 'application/json');
-            res.send(JSON.stringify(output,null,4));
+            res.send(JSON.stringify(output, null, 4));
         } else if (ext == "chartjs") {
             res.set('Content-Type', 'application/json');
-            res.send(JSON.stringify(simplifyOutput(csvOutput),null,4));
+            res.send(JSON.stringify(simplifyOutput(csvOutput), null, 4));
         } else {
             //TODO
-            ejs.renderFile(__dirname + '/page.html', { path: req.path, query: req.query }, function(err,csvOutput) {
+            ejs.renderFile(__dirname + '/page.html', { path: req.path, query: req.query }, function (err, csvOutput) {
                 res.send(csvOutput);
             });
         }
     });
 }
+
 /*
  * Set the available REST endpoints and how to handle them
  */
-app.get('/', function(req,res) { handleRequest(req,res); });
+app.get('/', function (req, res) { handleRequest(req, res); });
 //app.get('/:column_heading/:value.:ext', function(req,res) { handleRequest(req,res); });
 //app.get('/:column_heading/:value', function(req,res) { handleRequest(req,res); });
 
