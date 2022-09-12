@@ -11,7 +11,7 @@ const getStatements = async (activity, verb, since, until) => {
     let myHeaders = new Headers();
     myHeaders.append(
         'Authorization',
-        'Basic' + process.env.KEY
+        'Basic ' + process.env.KEY
     );
     myHeaders.append('Content-Type', 'application/json');
     myHeaders.append('X-Experience-API-Version', '1.0.0');
@@ -23,7 +23,7 @@ const getStatements = async (activity, verb, since, until) => {
     };
     // get paramters from search param in url
 
-    let base = "https://theodi.learninglocker.net/data/xAPI/statements";
+    let base = "https://theodi.learninglocker.net/data/xAPI/statements?";
     let args = [];
     if (verb) { args.push("verb=" + verb); }
     if (activity) { args.push("activity=" + encodeURIComponent(activity)); }
@@ -62,10 +62,10 @@ function handleRequest(req, res) {
     var filter = req.query;
     if (!filter.activity) {
         res.statusMessage = "You need to define an activity e.g. http://url.com/?activity=http://....";
-        res.status(400).end();
+        // res.status(400).end();
     }
 
-
+    
     var activity = filter.activity;
     var verb = "http://adlnet.gov/expapi/verbs/answered";
     var since = filter.since || null;
@@ -73,7 +73,12 @@ function handleRequest(req, res) {
     var format = filter.format;
 
     getStatements(activity, verb, since, until).then((objects) => {
-        var statements = objects.statements;
+        var statements = objects?.statements;
+        if (!statements) {
+            res.statusMessage = "No statements found";
+            res.status(404).end();
+        }
+        else {
 
         var output = {};
 
@@ -102,17 +107,19 @@ function handleRequest(req, res) {
         });
 
         statements ?? [0].object?.definition.choices.map((a) => {
-            var jsonres = {};
+            let jsonres = {};
             jsonres.id = a.id;
             jsonres.count = responseArray[a.id] || 0;
             output.responses.push(jsonres);
 
-            var csvres = {};
+            let csvres = {};
             csvres.answer = a.description.en;
             csvres.count = responseArray[a.id] || 0;
             csvOutput.push(csvres);
         });
-
+    }
+// fix cannot set headers after they are sent to the client error
+    
         // Work out what the client asked for, the ".ext" specified always overrides content negotiation
         ext = req.params["ext"] || filter.format;
         // If there is no extension specified then manage it via content negoition, yay!
@@ -122,7 +129,7 @@ function handleRequest(req, res) {
 
         // Return the data to the user in a format they asked for
         // CSV, JSON or by default HTML (web page)
-        res.setHeader('Access-Control-Allow-Origin', '*');
+            res.set('Access-Control-Allow-Origin', '*');
         if (ext == "csv") {
             res.set('Content-Type', 'text/csv');
             res.send(json2csv({ data: csvOutput }));
@@ -139,8 +146,8 @@ function handleRequest(req, res) {
             });
         }
     });
-
 }
+
 /*
  * Set the available REST endpoints and how to handle them
  */
