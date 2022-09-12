@@ -4,13 +4,14 @@ const fetch = require('node-fetch');
 var json2csv = require('json2csv'); // Library to create CSV for output
 const { Headers } = fetch;
 
+
 const app = express(); // Initialise the REST app
 
 const getStatements = async (activity,verb,since,until) => {
   let myHeaders = new Headers();
   myHeaders.append(
     'Authorization',
-    'Basic ' + process.env.KEY
+    'Basic' + process.env.KEY
   );
   myHeaders.append('Content-Type', 'application/json');
   myHeaders.append('X-Experience-API-Version', '1.0.0');
@@ -22,7 +23,7 @@ const getStatements = async (activity,verb,since,until) => {
   };
   // get paramters from search param in url
 
-  let base = "https://theodi.learninglocker.net/data/xAPI/statements?";
+  let base = "https://theodi.learninglocker.net/data/xAPI/statements";
   let args = [];
   if (verb) { args.push("verb="+verb); }
   if (activity) { args.push("activity="+encodeURIComponent(activity)); }
@@ -32,14 +33,18 @@ const getStatements = async (activity,verb,since,until) => {
   
   // insert params in fetch
   const getJson = async (query) => {
-
+try {
     const res = await fetch(
       query,
       requestOptions
     );
     return await res.json();
   }
-
+// catch error and return 404 to user 
+catch (error) {
+    return console.log('404  error', error);
+  }
+    };
   return await getJson(query);
 }
 
@@ -48,10 +53,8 @@ function simplifyOutput(input) {
     input.map((a) => {
         array.push(a.count);
     });
-    return array;    
+    return array;
 }
-
-
 /* 
  * Function to handle the users REST request
  */
@@ -61,6 +64,7 @@ function handleRequest(req,res) {
         res.statusMessage = "You need to define an activity e.g. http://url.com/?activity=http://....";
         res.status(400).end();
     }
+
 
     var activity = filter.activity;
     var verb = "http://adlnet.gov/expapi/verbs/answered";
@@ -75,14 +79,15 @@ function handleRequest(req,res) {
 
         var csvOutput = [];
 
-        output.object = statements[0].object;
+        output.object = statements??[0].object;
+
         output.responses = [];
         output.success = 0;
         output.completion = 0;
         
         var responseArray = [];
 
-        statements.map((a) => {
+        statements?.map((a) => {
             result = a.result;
             responses = result.response.split('[,]');
             responses.map((response) => { 
@@ -96,7 +101,7 @@ function handleRequest(req,res) {
             if (result.completion) {output.completion += 1;}
         });
 
-        statements[0].object.definition.choices.map((a) => {
+        statements??[0].object?.definition.choices.map((a) => {
             var jsonres = {};
             jsonres.id = a.id;
             jsonres.count = responseArray[a.id] || 0;
@@ -107,7 +112,7 @@ function handleRequest(req,res) {
             csvres.count = responseArray[a.id] || 0;
             csvOutput.push(csvres);
         });
-
+    
         // Work out what the client asked for, the ".ext" specified always overrides content negotiation
         ext = req.params["ext"] || filter.format;
         // If there is no extension specified then manage it via content negoition, yay!
@@ -134,6 +139,7 @@ function handleRequest(req,res) {
             });
         }
     });
+    
 }
 /*
  * Set the available REST endpoints and how to handle them
