@@ -10,7 +10,7 @@ const getStatements = async (activity,verb,since,until) => {
   let myHeaders = new Headers();
   myHeaders.append(
     'Authorization',
-    'Basic <key>'
+    'Basic ' + process.env.KEY
   );
   myHeaders.append('Content-Type', 'application/json');
   myHeaders.append('X-Experience-API-Version', '1.0.0');
