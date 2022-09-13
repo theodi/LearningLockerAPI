@@ -13,6 +13,8 @@ The following params are also supported:
 since = date
 until = date
 
+Currently the "answered" verb is hardcoded so it will only look for activities where this exists.
+
 # Installing your own
 
 1) Clone this repository
@@ -20,3 +22,7 @@ until = date
 2) npm install 
 
 3) node index.js
+
+# Some working test requests
+
+http://localhost:3000/?activity=https://learning.theodi.org/xapi/activities/mit-moral-machine-test%23/id/630f81656b4097008b2afd6f_branching_0&format=chartjs#/id/630f81656b4097008b2afd6f_branching_0&format=chartjs

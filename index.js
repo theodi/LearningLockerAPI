@@ -62,7 +62,9 @@ function handleRequest(req, res) {
     var filter = req.query;
     if (!filter.activity) {
         res.statusMessage = "You need to define an activity e.g. http://url.com/?activity=http://....";
-        // res.status(400).end();
+        res.status(400).end();
+        res.send();
+        return;
     }
 
     
@@ -73,12 +75,20 @@ function handleRequest(req, res) {
     var format = filter.format;
 
     getStatements(activity, verb, since, until).then((objects) => {
-        var statements = objects?.statements;
-        if (!statements) {
-            res.statusMessage = "No statements found";
-            res.status(404).end();
+        if (!objects) {
+            res.statusMessage = "Internal server error";
+            res.status(500).end();
+            res.send();
+            return;
         }
-        else {
+
+        var statements = objects.statements;
+        if (statements.length < 1 || !statements) {
+            res.statusMessage = "No data found for activity " + activity + " with verb " + verb;
+            res.status(404).end();
+            res.send();
+            return;
+        }
 
         var output = {};
 
@@ -92,33 +102,42 @@ function handleRequest(req, res) {
 
         var responseArray = [];
 
-        statements?.map((a) => {
-            result = a.result;
-            responses = result.response.split('[,]');
-            responses.map((response) => {
-                if (responseArray[response]) {
-                    responseArray[response] += 1;
-                } else {
-                    responseArray[response] = 1;
-                }
+        try {
+            statements.map((a) => {
+                result = a.result;
+                responses = result.response.split('[,]');
+                responses.map((response) => {
+                    if (responseArray[response]) {
+                        responseArray[response] += 1;
+                    } else {
+                        responseArray[response] = 1;
+                    }
+                });
+                if (result.success) { output.success += 1; }
+                if (result.completion) { output.completion += 1; }
             });
-            if (result.success) { output.success += 1; }
-            if (result.completion) { output.completion += 1; }
-        });
+        } catch (error) {
+            output.success = "unknown";
+            output.completion = "unknown";
+        }
 
-        statements ?? [0].object?.definition.choices.map((a) => {
-            let jsonres = {};
-            jsonres.id = a.id;
-            jsonres.count = responseArray[a.id] || 0;
-            output.responses.push(jsonres);
+        try {
+            statements[0].object.definition.choices.map((a) => {
+                let jsonres = {};
+                jsonres.id = a.id;
+                jsonres.count = responseArray[a.id] || 0;
+                output.responses.push(jsonres);
 
-            let csvres = {};
-            csvres.answer = a.description.en;
-            csvres.count = responseArray[a.id] || 0;
-            csvOutput.push(csvres);
-        });
-    }
-// fix cannot set headers after they are sent to the client error
+                let csvres = {};
+                csvres.answer = a.description.en;
+                csvres.count = responseArray[a.id] || 0;
+                csvOutput.push(csvres);
+            });
+        } catch (error) {
+            // Do nothing
+        }
+        
+        // fix cannot set headers after they are sent to the client error
     
         // Work out what the client asked for, the ".ext" specified always overrides content negotiation
         ext = req.params["ext"] || filter.format;
@@ -158,4 +177,6 @@ app.get('/', function (req, res) { handleRequest(req, res); });
 /*
  * Start the app!
  */
-app.listen(process.env.PORT || 3000, () => console.log('Example app listening on port 3000!'));
+
+var port = process.env.PORT || 3000;
+app.listen(port, () => console.log('Listening on port ' + port));
