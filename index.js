@@ -163,7 +163,7 @@ function handleRequest(req, res) {
             res.set('Content-Type', 'application/json');
             res.send(JSON.stringify(simplifyOutput(csvOutput), null, 4));
         } else {
-            //TODO
+            console.log("Ended up in here, not sure why");
             ejs.renderFile(__dirname + '/page.html', { path: req.path, query: req.query }, function (err, csvOutput) {
                 res.send(csvOutput);
             });
