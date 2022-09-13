@@ -42,7 +42,10 @@ const getStatements = async (activity, verb, since, until) => {
         }
         // catch error and return 404 to user 
         catch (error) {
-            return console.log('404  error', error);
+            res.statusMessage = "Internal server error";
+            res.status(500).end();
+            res.send();
+            return;
         }
     };
     return await getJson(query);
@@ -76,7 +79,6 @@ function handleRequest(req, res) {
 
     getStatements(activity, verb, since, until).then((objects) => {
         if (!objects) {
-            console.log("500");
             res.statusMessage = "Internal server error";
             res.status(500).end();
             res.send();
@@ -85,14 +87,12 @@ function handleRequest(req, res) {
 
         var statements = objects.statements;
         if (statements.length < 1 || !statements) {
-            console.log("404");
             res.statusMessage = "No data found for activity " + activity + " with verb " + verb;
             res.status(404).end();
             res.send();
             return;
         }
-        console.log(statements);
-
+        
         var output = {};
 
         var csvOutput = [];
@@ -144,8 +144,7 @@ function handleRequest(req, res) {
     
         // Work out what the client asked for, the ".ext" specified always overrides content negotiation
         ext = req.params["ext"] || filter.format;
-        console.log("Got here with ext " + ext)
-        console.log(csvOutput);
+
         // If there is no extension specified then manage it via content negoition, yay!
         if (!ext) {
             ext = req.accepts(['json', 'csv', 'html']);
@@ -164,7 +163,6 @@ function handleRequest(req, res) {
             res.set('Content-Type', 'application/json');
             res.send(JSON.stringify(simplifyOutput(csvOutput), null, 4));
         } else {
-            console.log("Ended up in here, not sure why");
             ejs.renderFile(__dirname + '/page.html', { path: req.path, query: req.query }, function (err, csvOutput) {
                 res.send(csvOutput);
             });
