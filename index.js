@@ -145,6 +145,7 @@ function handleRequest(req, res) {
         // Work out what the client asked for, the ".ext" specified always overrides content negotiation
         ext = req.params["ext"] || filter.format;
         console.log("Got here with ext " + ext)
+        console.log(csvOutput);
         // If there is no extension specified then manage it via content negoition, yay!
         if (!ext) {
             ext = req.accepts(['json', 'csv', 'html']);
@@ -152,7 +153,7 @@ function handleRequest(req, res) {
 
         // Return the data to the user in a format they asked for
         // CSV, JSON or by default HTML (web page)
-            res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Origin', '*');
         if (ext == "csv") {
             res.set('Content-Type', 'text/csv');
             res.send(json2csv({ data: csvOutput }));
