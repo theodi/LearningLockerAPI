@@ -4,7 +4,7 @@
   "description": "An automatic API for CSV",
   "main": "index.js",
   "engines": {
-    "node": ">=7.x"
+    "node": "=16.x"
   },
   "repository": {
     "type": "git",
