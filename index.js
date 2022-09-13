@@ -92,12 +92,12 @@ function handleRequest(req, res) {
             res.send();
             return;
         }
-        
+
         var output = {};
 
         var csvOutput = [];
 
-        output.object = statements ?? [0].object;
+        output.object = statements[0].object;
 
         output.responses = [];
         output.success = 0;
@@ -132,7 +132,11 @@ function handleRequest(req, res) {
                 output.responses.push(jsonres);
 
                 let csvres = {};
-                csvres.answer = a.description.en;
+                try {
+                    csvres.answer = a.description.en;
+                } catch (error) {
+                    csvres.answer = a.id;
+                }
                 csvres.count = responseArray[a.id] || 0;
                 csvOutput.push(csvres);
             });
