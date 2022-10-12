@@ -26,3 +26,5 @@ Currently the "answered" verb is hardcoded so it will only look for activities w
 # Some working test requests
 
 http://localhost:3000/?activity=https://learning.theodi.org/xapi/activities/mit-moral-machine-test%23/id/630f81656b4097008b2afd6f_branching_0&format=chartjs#/id/630f81656b4097008b2afd6f_branching_0&format=chartjs
+
+https:///learning-locker-api.herokuapp.com?activity=https://learning.theodi.org/xapi/activities/mit-moral-machine-test%23/id/61c1e8a4493f810089f07788
